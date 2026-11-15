@@ -36,3 +36,7 @@ docker-compose logs db
 ## 次のアクション
 
 実験したい内容を決めて開始する。
+
+## 現在地
+
+- 2026-11-15: AI-DDD の共通部分 v7・フック（Claude Code・Codex）・改善の記録を入れ、CLAUDE.md を @AGENTS.md の形にした（ai-ddd #47）

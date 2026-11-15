@@ -1,2 +1,7 @@
 /target
 .env
+
+# AI-DDD の段階と止まる場所の印（フックが書く）
+.ai-ddd/phase
+.ai-ddd/awaiting
+__pycache__/

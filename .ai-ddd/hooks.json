@@ -1,0 +1,24 @@
+{
+  "mode": "session",
+  "start_words": [
+    "以上"
+  ],
+  "stop_words": [
+    "まって",
+    "待って"
+  ],
+  "approve_words": [
+    "はい",
+    "ok",
+    "お願いします",
+    "おねがいします",
+    "進めて",
+    "進めてください",
+    "yes"
+  ],
+  "intake_allowed_paths": [
+    "docs/requests/",
+    "docs/progress-status.md",
+    "docs/improvement-log.md"
+  ]
+}
