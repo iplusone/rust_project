@@ -1,8 +1,9 @@
+use askama::Template;
 use axum::{
     Router,
     extract::State,
     http::StatusCode,
-    response::{Html, Json},
+    response::{Html, IntoResponse, Json, Response},
     routing::get,
 };
 use serde::Serialize;
@@ -18,7 +19,26 @@ struct Item {
     description: Option<String>,
 }
 
-async fn index(State(pool): State<AppState>) -> Result<Html<String>, StatusCode> {
+#[derive(Template)]
+#[template(path = "items.html")]
+struct ItemsTemplate {
+    items: Vec<Item>,
+}
+
+struct HtmlTemplate<T>(T);
+
+// AskamaテンプレートをAxumのHTTPレスポンスに変換する汎用ラッパー
+impl<T: Template> IntoResponse for HtmlTemplate<T> {
+    fn into_response(self) -> Response {
+        match self.0.render() {
+            Ok(html) => Html(html).into_response(),
+            Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        }
+    }
+}
+
+// GET / : DBからアイテム一覧を取得し、HTMLテンプレートで描画して返す
+async fn index(State(pool): State<AppState>) -> Result<HtmlTemplate<ItemsTemplate>, StatusCode> {
     let items = sqlx::query_as::<_, Item>(
         "SELECT id, name, description FROM items ORDER BY id",
     )
@@ -26,50 +46,10 @@ async fn index(State(pool): State<AppState>) -> Result<Html<String>, StatusCode>
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let rows = items
-        .iter()
-        .map(|item| {
-            format!(
-                "<tr><td>{}</td><td>{}</td><td>{}</td></tr>",
-                item.id,
-                item.name,
-                item.description.as_deref().unwrap_or("-")
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    let html = format!(
-        r#"<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <title>rust_project</title>
-  <style>
-    body {{ font-family: sans-serif; padding: 2rem; background: #fafafa; }}
-    h1 {{ color: #333; }}
-    table {{ border-collapse: collapse; width: 100%; max-width: 700px; background: #fff; }}
-    th, td {{ border: 1px solid #ddd; padding: 0.6rem 1rem; text-align: left; }}
-    th {{ background: #f0f0f0; font-weight: bold; }}
-    tr:hover {{ background: #f9f9f9; }}
-    a {{ color: #0066cc; }}
-  </style>
-</head>
-<body>
-  <h1>Items（PostgreSQL から取得）</h1>
-  <table>
-    <thead><tr><th>ID</th><th>名前</th><th>説明</th></tr></thead>
-    <tbody>{rows}</tbody>
-  </table>
-  <p style="margin-top:1rem"><a href="/api/items">JSON API → /api/items</a></p>
-</body>
-</html>"#,
-        rows = rows
-    );
-
-    Ok(Html(html))
+    Ok(HtmlTemplate(ItemsTemplate { items }))
 }
 
+// GET /api/items : DBからアイテム一覧を取得し、JSON形式で返す
 async fn api_items(State(pool): State<AppState>) -> Result<Json<Vec<Item>>, StatusCode> {
     let items = sqlx::query_as::<_, Item>(
         "SELECT id, name, description FROM items ORDER BY id",
@@ -82,6 +62,7 @@ async fn api_items(State(pool): State<AppState>) -> Result<Json<Vec<Item>>, Stat
 }
 
 #[tokio::main]
+// アプリケーションのエントリーポイント。DB接続・マイグレーション・ルーティング・サーバー起動を行う
 async fn main() {
     dotenvy::dotenv().ok();
 
